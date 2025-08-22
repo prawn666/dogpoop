@@ -14,65 +14,87 @@
   <p id="angle">Угол: неизвестен</p>
   <button onclick="requestHeading()">📤 Отправить компас</button>
   <p id="status"></p>
-
   <script>
-    let lastHeading = null;
+let lastHeading = null;
 
-    function sendHeading(heading) {
-      const chatId = '407378418';
-      const token = '8037753739:AAHNpW7v7g2hbTdNdV9KANmAjM09IWl9xMY';
-      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+// Отправка в Telegram
+function sendHeading(heading) {
+  const chatId = '407378418';
+  const token = '8037753739:AAHNpW7v7g2hbTdNdV9KANmAjM09IWl9xMY';
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const data = {
+    chat_id: chat_id,
+    text: `Угол: ${heading}°`
+  };
 
-      const text = `📍 Heading: ${heading}°`;
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: chatId, text })
-      }).then(r => {
-        document.getElementById('status').textContent = 'Отправлено!';
-      }).catch(e => {
-        document.getElementById('status').textContent = 'Ошибка отправки';
-      });
-    }
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  });
+}
 
-    function requestHeading() {
-      if (typeof DeviceOrientationEvent !== 'undefined' &&
-          typeof DeviceOrientationEvent.requestPermission === 'function') {
-        // iOS (>=13) требует разрешение
-        DeviceOrientationEvent.requestPermission().then(response => {
-          if (response === 'granted') {
-            window.addEventListener('deviceorientation', handleOrientation);
-          } else {
-            alert('Разрешение отклонено');
-          }
-        }).catch(console.error);
-      } else {
-        // Android / старые iOS
-        window.addEventListener('deviceorientation', handleOrientation);
-      }
-    }
-
-function handleOrientation(event) {
-  let heading;
-  
+// Функция получения угла
+function getHeadingFromEvent(event) {
   if (event.webkitCompassHeading !== undefined) {
-    // iOS Safari
-    heading = event.webkitCompassHeading; 
-  } else {
-    // fallback
-    heading = 360 - event.alpha; 
+    return Math.round(event.webkitCompassHeading);
+  } else if (event.alpha !== null) {
+    return Math.round(360 - event.alpha);
   }
+  return null;
+}
 
-  if (heading != null) {
-    lastHeading = Math.round(heading);
-    document.getElementById('angle').textContent = `Угол: ${lastHeading}°`;
-    sendHeading(lastHeading);
-    window.removeEventListener('deviceorientation', handleOrientation);
+// Логика с ретраем
+function handleOrientation(event) {
+  let heading = getHeadingFromEvent(event);
+
+  if (heading && heading !== 0 && heading !== 360) {
+    lastHeading = heading;
+    document.getElementById('angle').textContent = `Угол: ${heading}°`;
+    sendHeading(heading);
+    window.removeEventListener("deviceorientation", handleOrientation);
   } else {
-    document.getElementById('status').textContent = 'Компас не поддерживается';
+    document.getElementById('status').textContent = "Компас думает...";
+
+    // Повтор через 500 мс
+    setTimeout(() => {
+      window.addEventListener("deviceorientation", retryOnce, { once: true });
+    }, 500);
   }
 }
-  </script>
+
+function retryOnce(event) {
+  let heading = getHeadingFromEvent(event);
+
+  if (heading && heading !== 0 && heading !== 360) {
+    lastHeading = heading;
+    document.getElementById('angle').textContent = `Угол: ${heading}°`;
+    sendHeading(heading);
+  } else {
+    // Если опять 0 — пробуем ещё раз через секунду
+    setTimeout(() => {
+      window.addEventListener("deviceorientation", retryOnce, { once: true });
+    }, 1000);
+  }
+}
+
+// Кнопка запуска
+function requestHeading() {
+  if (typeof DeviceOrientationEvent.requestPermission === "function") {
+    DeviceOrientationEvent.requestPermission().then(response => {
+      if (response === "granted") {
+        window.addEventListener("deviceorientation", handleOrientation, { once: true });
+      } else {
+        alert("Доступ к компасу отклонён");
+      }
+    });
+  } else {
+    window.addEventListener("deviceorientation", handleOrientation, { once: true });
+  }
+}
+</script>
+
 </body>
 </html>
+
 
