@@ -52,17 +52,27 @@
       }
     }
 
-    function handleOrientation(event) {
-      let heading = event.alpha; // 0-360 градусов
-      if (heading != null) {
-        lastHeading = Math.round(heading);
-        document.getElementById('angle').textContent = `Угол: ${lastHeading}°`;
-        sendHeading(lastHeading);
-        window.removeEventListener('deviceorientation', handleOrientation); // однократная отправка
-      } else {
-        document.getElementById('status').textContent = 'Компас не поддерживается';
-      }
-    }
+function handleOrientation(event) {
+  let heading;
+  
+  if (event.webkitCompassHeading !== undefined) {
+    // iOS Safari
+    heading = event.webkitCompassHeading; 
+  } else {
+    // fallback
+    heading = 360 - event.alpha; 
+  }
+
+  if (heading != null) {
+    lastHeading = Math.round(heading);
+    document.getElementById('angle').textContent = `Угол: ${lastHeading}°`;
+    sendHeading(lastHeading);
+    window.removeEventListener('deviceorientation', handleOrientation);
+  } else {
+    document.getElementById('status').textContent = 'Компас не поддерживается';
+  }
+}
   </script>
 </body>
 </html>
+
