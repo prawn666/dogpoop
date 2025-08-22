@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Компас</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 40px; }
+    button { font-size: 20px; padding: 15px 30px; }
+    #status { margin-top: 20px; color: green; }
+  </style>
+</head>
+<body>
+  <h1>📍 Отправка компаса</h1>
+  <p id="angle">Угол: неизвестен</p>
+  <button onclick="requestHeading()">📤 Отправить компас</button>
+  <p id="status"></p>
+
+  <script>
+    let lastHeading = null;
+
+    function sendHeading(heading) {
+      const chatId = '407378418';
+      const token = '8037753739:AAHNpW7v7g2hbTdNdV9KANmAjM09IWl9xMY';
+      const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
+      const text = `📍 Heading: ${heading}°`;
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text })
+      }).then(r => {
+        document.getElementById('status').textContent = 'Отправлено!';
+      }).catch(e => {
+        document.getElementById('status').textContent = 'Ошибка отправки';
+      });
+    }
+
+    function requestHeading() {
+      if (typeof DeviceOrientationEvent !== 'undefined' &&
+          typeof DeviceOrientationEvent.requestPermission === 'function') {
+        // iOS (>=13) требует разрешение
+        DeviceOrientationEvent.requestPermission().then(response => {
+          if (response === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          } else {
+            alert('Разрешение отклонено');
+          }
+        }).catch(console.error);
+      } else {
+        // Android / старые iOS
+        window.addEventListener('deviceorientation', handleOrientation);
+      }
+    }
+
+    function handleOrientation(event) {
+      let heading = event.alpha; // 0-360 градусов
+      if (heading != null) {
+        lastHeading = Math.round(heading);
+        document.getElementById('angle').textContent = `Угол: ${lastHeading}°`;
+        sendHeading(lastHeading);
+        window.removeEventListener('deviceorientation', handleOrientation); // однократная отправка
+      } else {
+        document.getElementById('status').textContent = 'Компас не поддерживается';
+      }
+    }
+  </script>
+</body>
+</html>
